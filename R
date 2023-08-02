@@ -1,0 +1,122 @@
+install.packages("readr")
+library(readr)
+library(dplyr)
+install.packages("tidyr")
+library(tidyr)
+install.packages("ggplot2")
+library(ggplot2)
+library(outliers)
+install.packages("NLP")
+library(NLP)
+install.packages("tm")
+library(tm)
+install.packages("RColorBrewer")
+library(RColorBrewer)
+install.packages("SnowballC")
+library(SnowballC)
+install.packages("stringr")
+library(stringr)
+install.packages("syuzhet")
+library(syuzhet)
+
+movies <- read_csv("IMDB_Dataset.csv")
+#movies <- read_csv("C:/Users/tslth/OneDrive/Desktop/IMDB_Dataset.csv.xls")
+#str(movies)
+#head(as.data.frame(movies))
+#tail(movies)
+
+#reviews <- read.csv(file.choose(), sep=",", header=T)
+abc <- as.matrix(movies)
+head(abc)
+tail(abc)
+
+abc <- str_remove_all(abc,"–")
+abc <- str_remove_all(abc,"’")
+abc <- str_remove_all(abc,"—")
+abc <- str_remove_all(abc,"“")
+abc <- str_remove_all(abc,"”")
+
+abc<-removeNumbers(abc)
+abc<-removePunctuation(abc)
+abc<-tolower(abc)
+abc<-removeWords(abc,c("now", "one", "will", "may", "says", "said", 
+                       "also", "figure", "etc", "re", "can"))
+stopwords<-c("the", "and", stopwords("en"))
+abc<-removeWords(abc, stopwords("en"))
+abc<-stripWhitespace(abc)
+abc<-wordStem(abc)        #function from SnowballC
+
+review_text<-abc
+head(review_text)
+tail(review_text)
+
+syuzhet_score <- get_sentiment(review_text, method="syuzhet")
+head(syuzhet_score)
+summary(syuzhet_score)
+
+bing_score <- get_sentiment(review_text, method="bing")
+head(bing_score)
+summary(bing_score)
+
+afinn_score <- get_sentiment(review_text, method="afinn")
+head(afinn_score)
+summary(afinn_score)
+
+#nrc_score <- get_sentiment(review_text, method="nrc")
+#head(nrc_score)
+#summary(nrc_score)
+
+comb_score <- cbind(syuzhet_score, bing_score, afinn_score)
+dimnames(comb_score) <- list(1:nrow(comb_score), c("s1", "s2", "s3"))
+df <- as.data.frame(comb_score)
+head(df,20)
+
+# simple analysis based on syuzhet_score
+min(df$s1)
+minLoc1 <- which(df$s1==min(df$s1))
+minLoc1
+review_text[minLoc1]
+
+max(df$s1)
+maxLoc1 <- which(df$s1==max(df$s1))
+maxLoc1
+review_text[maxLoc1]
+
+
+#view text docs with extreme negative sentiment score
+syuz_neg <- which(syuzhet_score<=(-5))
+txt<-review_text[syuz_neg]
+result<-cbind(syuz_neg,txt)
+result
+
+#view text docs with high posive sentiment score
+syuz_posit <- which(syuzhet_score>=4.5)
+txt<-review_text[syuz_posit]
+result1<-cbind(syuz_posit,txt)
+result1
+
+norm_score <- cbind(
+  sign(syuzhet_score), 
+  sign(bing_score), 
+  sign(afinn_score))
+
+dimnames(norm_score)<-list(1:nrow(norm_score), c("x1", "x2", "x3"))
+head(norm_score)
+
+z<-as.data.frame(norm_score)
+head(z,20)
+
+nrc_sentiment <- get_nrc_sentiment(review_text)
+head(nrc_sentiment,20)
+tail(nrc_sentiment,20)
+
+sentisum <- colSums(nrc_sentiment)
+sentisum
+
+nrc_average <- apply(nrc_sentiment,2,mean)
+nrc_average
+
+barplot(sentisum[1:10],col=rainbow(10), cex.names=0.8, cex.axis=0.8,las=2, main="Emotions and Sentiments")
+Lb <- paste(names(sentisum), ",", sentisum)
+pie(sentisum[1:10],col=brewer.pal(8,'Dark2'), labels=Lb, 
+    main="Emotions and Sentiment nrc Scores", cex=0.8, cex.main=2)
